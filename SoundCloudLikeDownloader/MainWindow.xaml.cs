@@ -7,6 +7,9 @@ using System.Linq;
 using System.Threading;
 using System.Windows;
 using System.Windows.Input;
+using System.Threading.Tasks;
+using System.Net;
+using System.Text;
 
 namespace SoundCloudLikeDownloader
 {
@@ -72,12 +75,14 @@ namespace SoundCloudLikeDownloader
                     var mySelf = User.Me();
                     var clientID = client.getClientID();
                     var trackList = new List<Track>();
+                    var i = 1;
+                    var limit = 200;
 
-                    for (var i = 0; i < mySelf.Favorites; i += 50)
+                    var favorites = User.Me().GetFavorites(limit, 1);
+
+                    while (favorites.NextHref != null)
                     {
-                        var favorites = User.Me().GetFavorites(i);
-
-                        foreach (var favorite in favorites.Select((track, j) => new { track.Id, j }))
+                        foreach(var favorite in favorites.Tracks)
                         {
                             var track = Track.GetTrack(favorite.Id);
                             if (downloader.DownloadMusicWithTrackId(track))
@@ -85,12 +90,14 @@ namespace SoundCloudLikeDownloader
                                 ListView1.Dispatcher.Invoke(
                                     new Action(() =>
                                     {
-                                        _likeCollection.Add(new Like() { Index = i + favorite.j, Title = track.Title });
+                                        _likeCollection.Add(new Like() { Index = i++, Title = track.Title });
                                     }));
                             }
                         }
-                    }
 
+                        favorites = JsonSerializer.Deserialize<Favorite>(new WebClient(){ Encoding = new UTF8Encoding()}.DownloadString(favorites.NextHref));
+                    }
+                    
                     MessageBox.Show("download successfully finished.");
                 }
             }).Start();
